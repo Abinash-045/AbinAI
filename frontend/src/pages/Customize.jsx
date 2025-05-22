@@ -7,8 +7,9 @@ import image4 from "../assets/image4.png"
 import image5 from "../assets/image5.png"
 import image6 from "../assets/image6.jpeg"
 import image7 from "../assets/image7.jpeg"
+import image12 from "../assets/image12.png"
 import { RiImageAddLine } from "react-icons/ri";
-import { userDataContext } from '../context/userContext'
+import { userDataContext } from '../context/UserContext'
 import { useNavigate } from 'react-router-dom'
 import { MdKeyboardBackspace } from "react-icons/md";
 function Customize() {
@@ -33,6 +34,7 @@ setFrontendImage(URL.createObjectURL(file))
           <Card image={image5}/>
            <Card image={image6}/>
             <Card image={image7}/>
+            <Card image={image12}/>
      <div className={`w-[70px] h-[140px] lg:w-[150px] lg:h-[250px] bg-[#020220] border-2 border-[#0000ff66] rounded-2xl overflow-hidden hover:shadow-2xl hover:shadow-blue-950 cursor-pointer hover:border-4 hover:border-white flex items-center justify-center ${selectedImage=="input"?"border-4 border-white shadow-2xl shadow-blue-950 ":null}` } onClick={()=>{
         inputImage.current.click()
         setSelectedImage("input")
