@@ -22,7 +22,14 @@ try {
   const result=await axios.post(`${serverUrl}/api/user/asktoassistant`,{command},{withCredentials:true})
   return result.data
 } catch (error) {
-  console.log(error)
+  console.error("API Error:", error)
+  // Return a default error response object instead of undefined
+  return { 
+    response: error.response?.data?.response || "Sorry, I'm having trouble connecting. Please try again.",
+    type: 'general',
+    userInput: command,
+    action: null
+  }
 }
     }
 

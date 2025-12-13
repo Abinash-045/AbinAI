@@ -43,42 +43,62 @@ export const askToAssistant=async (req,res)=>{
       const {command}=req.body
       const user=await User.findById(req.userId);
       user.history.push(command)
-      user.save()
+      await user.save()
       const userName=user.name
       const assistantName=user.assistantName
       const result=await geminiResponse(command,assistantName,userName)
 
+      // Check if result is valid before processing
+      if (!result || typeof result !== 'string') {
+         return res.status(500).json({ 
+            response: "Failed to get AI response. Please try again.",
+            type: "general",
+            userInput: command
+         })
+      }
+
       const jsonMatch=result.match(/{[\s\S]*}/)
       if(!jsonMatch){
-         return res.ststus(400).json({response:"sorry, i can't understand"})
+         return res.status(400).json({response:"sorry, i can't understand"})
       }
       const gemResult=JSON.parse(jsonMatch[0])
       console.log(gemResult)
-      const type=gemResult.type
+      // Normalize both new and old schemas into { type, userInput, response }
+      let normalized={ type:null, userInput:null, response:null };
+      if(gemResult?.action?.type){
+         normalized.type = gemResult.action.type
+         normalized.userInput = gemResult.userInput || gemResult.action?.params?.query || command
+         normalized.response = gemResult.speech || gemResult.response || "Here you go."
+      } else {
+         normalized.type = gemResult.type
+         normalized.userInput = gemResult.userInput || command
+         normalized.response = gemResult.response || "Here you go."
+      }
+      const type=normalized.type
 
       switch(type){
          case 'get-date' :
             return res.json({
                type,
-               userInput:gemResult.userInput,
+               userInput:normalized.userInput,
                response:`current date is ${moment().format("YYYY-MM-DD")}`
             });
             case 'get-time':
                 return res.json({
                type,
-               userInput:gemResult.userInput,
+               userInput:normalized.userInput,
                response:`current time is ${moment().format("hh:mm A")}`
             });
              case 'get-day':
                 return res.json({
                type,
-               userInput:gemResult.userInput,
+               userInput:normalized.userInput,
                response:`today is ${moment().format("dddd")}`
             });
             case 'get-month':
                 return res.json({
                type,
-               userInput:gemResult.userInput,
+               userInput:normalized.userInput,
                response:`today is ${moment().format("MMMM")}`
             });
       case 'google-search':
@@ -91,8 +111,8 @@ export const askToAssistant=async (req,res)=>{
        case "weather-show" :
          return res.json({
             type,
-            userInput:gemResult.userInput,
-            response:gemResult.response,
+            userInput:normalized.userInput,
+            response:normalized.response,
          });
 
          default:

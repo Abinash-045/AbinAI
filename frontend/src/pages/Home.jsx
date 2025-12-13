@@ -67,32 +67,97 @@ synth.speak(utterence);
   }
 
   const handleCommand=(data)=>{
-    const {type,userInput,response}=data
-      speak(response);
-    
-    if (type === 'google-search') {
-      const query = encodeURIComponent(userInput);
-      window.open(`https://www.google.com/search?q=${query}`, '_blank');
-    }
-     if (type === 'calculator-open') {
-  
-      window.open(`https://www.google.com/search?q=calculator`, '_blank');
-    }
-     if (type === "instagram-open") {
-      window.open(`https://www.instagram.com/`, '_blank');
-    }
-    if (type ==="facebook-open") {
-      window.open(`https://www.facebook.com/`, '_blank');
-    }
-     if (type ==="weather-show") {
-      window.open(`https://www.google.com/search?q=weather`, '_blank');
+    // Backward compatible fields
+    const type = data?.action?.type || data?.type
+    const userInput = data?.userInput || data?.action?.params?.query || ""
+    const response = data?.speech || data?.response || "Here you go."
+
+    speak(response)
+
+    const encode=(v)=>encodeURIComponent(v||"")
+
+    const open=(url)=>window.open(url,'_blank')
+
+    const handlers={
+      'google-search':({q})=>open(`https://www.google.com/search?q=${encode(q)}`),
+      'bing-search':({q})=>open(`https://www.bing.com/search?q=${encode(q)}`),
+      'duck-search':({q})=>open(`https://duckduckgo.com/?q=${encode(q)}`),
+      'image-search':({q})=>open(`https://www.google.com/search?tbm=isch&q=${encode(q)}`),
+      'video-search':({q})=>open(`https://www.google.com/search?tbm=vid&q=${encode(q)}`),
+      'news-search':({q})=>open(`https://news.google.com/search?q=${encode(q)}`),
+      'wiki-search':({q})=>open(`https://en.wikipedia.org/w/index.php?search=${encode(q)}`),
+      'shopping-search':({q})=>open(`https://www.google.com/search?tbm=shop&q=${encode(q)}`),
+
+      'amazon-search':({q})=>open(`https://www.amazon.in/s?k=${encode(q)}`),
+      'flipkart-search':({q})=>open(`https://www.flipkart.com/search?q=${encode(q)}`),
+      'ebay-search':({q})=>open(`https://www.ebay.com/sch/i.html?_nkw=${encode(q)}`),
+      'etsy-search':({q})=>open(`https://www.etsy.com/search?q=${encode(q)}`),
+
+      'youtube-search':({q})=>open(`https://www.youtube.com/results?search_query=${encode(q)}`),
+      'youtube-play':({q})=>open(`https://www.youtube.com/results?search_query=${encode(q)}`),
+      'youtube-channel-open':({q})=>open(`https://www.youtube.com/@${encode(q)}`),
+
+      'maps-search':({q})=>open(`https://www.google.com/maps/search/${encode(q)}`),
+      'maps-nearby':({q})=>open(`https://www.google.com/maps/search/${encode(q||'nearby')}+near+me`),
+      'maps-directions':({origin,destination})=>open(`https://www.google.com/maps/dir/?api=1&origin=${encode(origin)}&destination=${encode(destination)}&travelmode=driving`),
+
+      'weather-show':({q})=>open(`https://www.google.com/search?q=${encode('weather '+(q||''))}`),
+      'weather-forecast':({q})=>open(`https://www.google.com/search?q=${encode('weather forecast '+(q||''))}`),
+      'air-quality':({q})=>open(`https://www.google.com/search?q=${encode('air quality '+(q||''))}`),
+
+      'instagram-open':()=>open(`https://www.instagram.com/`),
+      'facebook-open':()=>open(`https://www.facebook.com/`),
+      'twitter-open':()=>open(`https://x.com/`),
+      'linkedin-open':()=>open(`https://www.linkedin.com/`),
+      'github-open':()=>open(`https://github.com/`),
+      'reddit-open':()=>open(`https://www.reddit.com/`),
+      'pinterest-open':()=>open(`https://www.pinterest.com/`),
+      'tiktok-open':()=>open(`https://www.tiktok.com/`),
+      'snapchat-open':()=>open(`https://web.snapchat.com/`),
+      'threads-open':()=>open(`https://www.threads.net/`),
+      'discord-open':()=>open(`https://discord.com/app`),
+      'telegram-open':()=>open(`https://web.telegram.org/`),
+      'whatsapp-open':()=>open(`https://web.whatsapp.com/`),
+
+      'stack-search':({q})=>open(`https://stackoverflow.com/search?q=${encode(q)}`),
+      'mdn-search':({q})=>open(`https://developer.mozilla.org/en-US/search?q=${encode(q)}`),
+      'devdocs-search':({q})=>open(`https://devdocs.io/#q=${encode(q)}`),
+
+      'spotify-search':({q})=>open(`https://open.spotify.com/search/${encode(q)}`),
+      'spotify-play':({q})=>open(`https://open.spotify.com/search/${encode(q)}`),
+      'applemusic-search':({q})=>open(`https://music.apple.com/us/search?term=${encode(q)}`),
+      'soundcloud-search':({q})=>open(`https://soundcloud.com/search?q=${encode(q)}`),
+
+      'imdb-search':({q})=>open(`https://www.imdb.com/find/?q=${encode(q)}`),
+      'netflix-open':()=>open(`https://www.netflix.com/`),
+      'primevideo-open':()=>open(`https://www.primevideo.com/`),
+      'hotstar-open':()=>open(`https://www.hotstar.com/`),
+      'disney-open':()=>open(`https://www.disneyplus.com/`),
+
+      'calendar-open':()=>open(`https://calendar.google.com/`),
+      'clock-open':()=>open(`https://www.google.com/search?q=online+clock`),
+      'timer-open':()=>open(`https://timer.onlineclock.net/`),
+      'stopwatch-open':()=>open(`https://www.online-stopwatch.com/`),
+      'calculator-open':()=>open(`https://www.google.com/search?q=calculator`),
+
+      'translate':({q,from,to})=>open(`https://translate.google.com/?sl=${encode(from||'auto')}&tl=${encode(to||'en')}&text=${encode(q)}&op=translate`),
+      'unit-convert':({q})=>open(`https://www.google.com/search?q=${encode(q)}`),
+      'currency-convert':({q})=>open(`https://www.google.com/search?q=${encode(q)}`),
+
+      'email-compose':({email,subject,body})=>open(`mailto:${email||''}?subject=${encode(subject||'')}&body=${encode(body||'')}`),
+      'open-site':({site,q})=>open(`https://${site}${q?('/search?q='+encode(q)):''}`),
+      'general':({q})=>open(`https://www.google.com/search?q=${encode(q)}`),
+      'get-time':()=>{},
+      'get-date':()=>{},
+      'get-day':()=>{},
+      'get-month':()=>{},
     }
 
-    if (type === 'youtube-search' || type === 'youtube-play') {
-      const query = encodeURIComponent(userInput);
-      window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank');
+    const params={ q:userInput }
+    const handler=handlers[type]
+    if(handler){
+      try { handler(params) } catch(e){ console.warn(e) }
     }
-
   }
 
 useEffect(() => {
@@ -163,24 +228,31 @@ useEffect(() => {
 
   recognition.onresult = async (e) => {
     const transcript = e.results[e.results.length - 1][0].transcript.trim();
-    if (transcript.toLowerCase().includes(userData.assistantName.toLowerCase())) {
+    if (userData?.assistantName && transcript.toLowerCase().includes(userData.assistantName.toLowerCase())) {
       setAiText("");
       setUserText(transcript);
       recognition.stop();
       isRecognizingRef.current = false;
       setListening(false);
       const data = await getGeminiResponse(transcript);
-      handleCommand(data);
-      setAiText(data.response);
+      
+      // Add safety check before accessing data properties
+      if (data && data.response) {
+        handleCommand(data);
+        setAiText(data.response);
+      } else {
+        setAiText("Sorry, I couldn't process your request. Please try again.");
+      }
       setUserText("");
     }
   };
 
 
-    const greeting = new SpeechSynthesisUtterance(`Hello ${userData.name}, what can I help you with?`);
-    greeting.lang = 'hi-IN';
-   
-    window.speechSynthesis.speak(greeting);
+    if (userData?.name) {
+      const greeting = new SpeechSynthesisUtterance(`Hello ${userData.name}, what can I help you with?`);
+      greeting.lang = 'hi-IN';
+      window.speechSynthesis.speak(greeting);
+    }
  
 
   return () => {
@@ -207,8 +279,8 @@ useEffect(() => {
 <h1 className='text-white font-semibold text-[19px]'>History</h1>
 
 <div className='w-full h-[400px] gap-[20px] overflow-y-auto flex flex-col truncate'>
-  {userData.history?.map((his)=>(
-    <div className='text-gray-200 text-[18px] w-full h-[30px]  '>{his}</div>
+  {userData.history?.map((his, index)=>(
+    <div key={index} className='text-gray-200 text-[18px] w-full h-[30px]  '>{his}</div>
   ))}
 
 </div>

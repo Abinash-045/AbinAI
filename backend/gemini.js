@@ -2,58 +2,97 @@ import axios from "axios"
 const geminiResponse=async (command,assistantName,userName)=>{
 try {
     const apiUrl=process.env.GEMINI_API_URL
-    const prompt = `You are a virtual assistant named ${assistantName} created by ${userName}. 
-You are not Google. You will now behave like a voice-enabled assistant.
+    
+    // Check if API URL is configured
+    if (!apiUrl) {
+        console.error("GEMINI_API_URL is not configured in environment variables")
+        return JSON.stringify({
+            type: "general",
+            userInput: command,
+            response: "Sorry, AI service is not configured. Please contact support."
+        })
+    }
+    
+    const prompt = `You are a virtual assistant named ${assistantName} created by ${userName}.
+You are not Google. Behave like a voice-enabled assistant.
 
-Your task is to understand the user's natural language input and respond with a JSON object like this:
-
+Return ONLY JSON. Prefer this schema:
 {
-  "type": "general" | "google-search" | "youtube-search" | "youtube-play" | "get-time" | "get-date" | "get-day" | "get-month"|"calculator-open" | "instagram-open" |"facebook-open" |"weather-show"
-  ,
-  "userInput": "<original user input>" {only remove your name from userinput if exists} and agar kisi ne google ya youtube pe kuch search karne ko bola hai to userInput me only bo search baala text jaye,
-
-  "response": "<a short spoken response to read out loud to the user>"
+  "action": {
+    "type": "general" | "google-search" | "bing-search" | "duck-search" | "image-search" | "video-search" | "news-search" | "wiki-search" | "shopping-search" | "amazon-search" | "flipkart-search" | "ebay-search" | "etsy-search" | "aliexpress-search" | "youtube-search" | "youtube-play" | "youtube-channel-open" | "maps-search" | "maps-directions" | "maps-nearby" | "weather-show" | "weather-forecast" | "air-quality" | "spotify-search" | "spotify-play" | "applemusic-search" | "soundcloud-search" | "instagram-open" | "facebook-open" | "twitter-open" | "linkedin-open" | "github-open" | "reddit-open" | "pinterest-open" | "tiktok-open" | "snapchat-open" | "threads-open" | "discord-open" | "telegram-open" | "whatsapp-open" | "stack-search" | "mdn-search" | "devdocs-search" | "imdb-search" | "netflix-open" | "primevideo-open" | "hotstar-open" | "disney-open" | "livescore-open" | "league-table-open" | "calendar-open" | "clock-open" | "timer-open" | "stopwatch-open" | "unit-convert" | "currency-convert" | "translate" | "email-compose" | "open-site" | "get-time" | "get-date" | "get-day" | "get-month",
+    "params": { "query"?: string, "site"?: string, "from"?: string, "to"?: string, "origin"?: string, "destination"?: string, "nearbyType"?: string, "email"?: string, "subject"?: string, "body"?: string }
+  },
+  "speech": "<short voice-friendly reply>",
+  "userInput": "<original input without your name>"
 }
 
-Instructions:
-- "type": determine the intent of the user.
-- "userinput": original sentence the user spoke.
-- "response": A short voice-friendly reply, e.g., "Sure, playing it now", "Here's what I found", "Today is Tuesday", etc.
+Fallback OLD schema also allowed:
+{ "type": "...", "userInput": "...", "response": "..." }
 
-Type meanings:
-- "general": if it's a factual or informational question. aur agar koi aisa question puchta hai jiska answer tume pata hai usko bhi general ki category me rakho bas short answer dena
-- "google-search": if user wants to search something on Google .
-- "youtube-search": if user wants to search something on YouTube.
-- "youtube-play": if user wants to directly play a video or song.
-- "calculator-open": if user wants to  open a calculator .
-- "instagram-open": if user wants to  open instagram .
-- "facebook-open": if user wants to open facebook.
--"weather-show": if user wants to know weather
-- "get-time": if user asks for current time.
-- "get-date": if user asks for today's date.
-- "get-day": if user asks what day it is.
-- "get-month": if user asks for the current month.
+Rules:
+- For searches, put exact text into params.query.
+- For open-site, put params.site like "gmail.com".
+- Keep speech short: "Here you go", "Opening Instagram", "Playing now".
+- If asked who made you, say ${userName}.
 
-Important:
-- Use ${userName} agar koi puche tume kisne banaya 
-- Only respond with the JSON object, nothing else.
-
-
-now your userInput- ${command}
+User said: ${command}
 `;
-
-
-
-
 
     const result=await axios.post(apiUrl,{
     "contents": [{
     "parts":[{"text": prompt}]
     }]
+    }, {
+        headers: {
+            'Content-Type': 'application/json'
+        }
     })
-return result.data.candidates[0].content.parts[0].text
+    
+    // Validate response structure - support both v1beta and v1 API formats
+    const responseData = result?.data
+    let responseText = null
+    
+    // Try v1beta/v1 format: candidates[0].content.parts[0].text
+    if (responseData?.candidates?.[0]?.content?.parts?.[0]?.text) {
+        responseText = responseData.candidates[0].content.parts[0].text
+    }
+    // Try alternative format (for newer API versions)
+    else if (responseData?.candidates?.[0]?.text) {
+        responseText = responseData.candidates[0].text
+    }
+    // Try direct text response
+    else if (responseData?.text) {
+        responseText = responseData.text
+    }
+    
+    if (!responseText) {
+        console.error("Invalid response structure from Gemini API:", responseData)
+        return JSON.stringify({
+            type: "general",
+            userInput: command,
+            response: "Sorry, I received an invalid response from the AI service."
+        })
+    }
+    
+    return responseText
 } catch (error) {
-    console.log(error)
+    // Log detailed error information
+    console.error("Gemini API Error Details:")
+    console.error("Message:", error.message)
+    console.error("Response Data:", error.response?.data)
+    console.error("Response Status:", error.response?.status)
+    console.error("Full Error:", error)
+    
+    // Return a default JSON response instead of undefined
+    return JSON.stringify({
+        type: "general",
+        userInput: command,
+        response: error.response?.status === 429 
+            ? "Sorry, I've reached my rate limit. Please try again in a moment."
+            : error.response?.status === 401 || error.response?.status === 403
+            ? "Sorry, there's an authentication issue with the AI service. Please check the API configuration."
+            : "Sorry, I'm having trouble connecting to my AI service. Please try again later."
+    })
 }
 }
 
